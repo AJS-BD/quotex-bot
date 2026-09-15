@@ -3,9 +3,13 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy import select
-from database import Base, User, Signal, Trade, get_user, save_user, create_tables
+from database import Base, User, Signal, Trade, get_user, save_user, create_tables, get_active_users, was_signal_recent, save_signal
 
 DATABASE_URL = "sqlite+aiosqlite:///test.db"
+
+EMAIL_KEY = "encrypted_email_string"
+PASS_KEY = "encrypted_pass_string"
+
 
 @pytest_asyncio.fixture
 async def engine():
@@ -16,17 +20,19 @@ async def engine():
     yield eng
     await eng.dispose()
 
+
 @pytest_asyncio.fixture
 async def session(engine):
     async with AsyncSession(engine) as sess:
         yield sess
 
+
 @pytest.mark.asyncio
 async def test_create_user(session):
     user = User(
         chat_id=123456,
-        email="encrypted_email",
-        password="<REDACTED>
+        email=EMAIL_KEY,
+        password=PASS_KEY,
         stake=10.0,
         auto_trade=True,
         assets=["ALL"],
@@ -39,13 +45,14 @@ async def test_create_user(session):
     assert result.stake == 10.0
     assert result.auto_trade is True
 
+
 @pytest.mark.asyncio
 async def test_save_user_upsert(session):
     """Test that save_user updates existing user via merge."""
     user = User(
         chat_id=777,
-        email="encrypted_email_1",
-        password="<REDACTED>
+        email=EMAIL_KEY,
+        password=PASS_KEY,
         stake=5.0,
         auto_trade=False,
         assets=["ALL"],
@@ -61,11 +68,13 @@ async def test_save_user_upsert(session):
     assert result.stake == 25.0
     assert result.auto_trade is True
 
+
 @pytest.mark.asyncio
 async def test_get_user_not_found(session):
-    """Test that get_user returns None when user doesn't exist."""
+    """Test get_user returns None for unknown user."""
     result = await get_user(session, 999999)
     assert result is None
+
 
 @pytest.mark.asyncio
 async def test_create_signal(session):
@@ -78,12 +87,13 @@ async def test_create_signal(session):
     assert signal.asset == "EURUSD_OTC"
     assert signal.direction == "CALL"
 
+
 @pytest.mark.asyncio
 async def test_create_trade(session):
     user = User(
         chat_id=555,
-        email="encrypted_email",
-        password="<REDACTED>
+        email=EMAIL_KEY,
+        password=PASS_KEY,
         stake=10.0,
         auto_trade=True,
         assets=["ALL"],
@@ -107,30 +117,30 @@ async def test_create_trade(session):
     assert trade.result == "WIN"
     assert float(trade.pnl) == 8.70
 
+
 @pytest.mark.asyncio
 async def test_get_active_users(session):
     """Test fetching non-paused users."""
     u1 = User(
-        chat_id=100, email="encrypted_1", password="<REDACTED>
+        chat_id=100, email=EMAIL_KEY, password=PASS_KEY,
         stake=1.0, auto_trade=False, assets=["ALL"], paused=False,
     )
     u2 = User(
-        chat_id=101, email="encrypted_2", password="<REDACTED>
+        chat_id=101, email=EMAIL_KEY, password=PASS_KEY,
         stake=1.0, auto_trade=False, assets=["ALL"], paused=True,
     )
     await save_user(session, u1)
     await save_user(session, u2)
 
-    active = await __import__('database').get_active_users(session)
+    active = await get_active_users(session)
     chat_ids = {u.chat_id for u in active}
     assert 100 in chat_ids
     assert 101 not in chat_ids
 
+
 @pytest.mark.asyncio
 async def test_was_signal_recent(session):
     """Test signal cooldown window."""
-    from database import was_signal_recent, save_signal
-
     recent = await was_signal_recent(session, "EURUSD_OTC", minutes=5)
     assert recent is False
 
