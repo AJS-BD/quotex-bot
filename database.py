@@ -46,6 +46,7 @@ class Trade(Base):
     result = Column(String(10))  # WIN or LOSS
     pnl = Column(Numeric, default=0.0)
     balance_after = Column(Numeric)
+    order_id = Column(String(50))  # Quotex order ID for result checking
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
