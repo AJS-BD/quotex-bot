@@ -17,10 +17,11 @@ class Trader:
             from config import ENCRYPTION_KEY
 
             f = Fernet(ENCRYPTION_KEY.encode())
-            ssid = f.decrypt(user.ssid.encode()).decode()
+            email = f.decrypt(user.email.encode()).decode()
+            password = f.decrypt(user.password.encode()).decode()
 
-            from pyquotex import Quotex
-            client = Quotex(ssid=ssid)
+            from quotexpy import Quotex
+            client = Quotex(email=email, password=password)
             await client.connect()
             self._clients[user.chat_id] = client
 
@@ -31,17 +32,15 @@ class Trader:
         try:
             client = await self._get_client(user)
 
-            # Place order via pyquotex
-            order = await client.place_order(
+            direction = signal.direction.lower()
+            order = await client.trade(
                 asset=signal.asset,
-                direction=signal.direction.lower(),  # "call" or "put"
                 amount=float(user.stake),
-                duration=60  # 1 minute expiry
+                direction=direction,
+                duration=60
             )
 
             from database import Trade
-
-            order_id = order.get("id") if isinstance(order, dict) else str(order)
 
             trade = Trade(
                 user_id=user.chat_id,
@@ -50,8 +49,7 @@ class Trader:
                 direction=signal.direction,
                 amount=user.stake,
                 result=None,
-                pnl=0.0,
-                order_id=order_id
+                pnl=0.0
             )
 
             logger.info(f"Trade placed: {signal.direction} {signal.asset} @ ${user.stake}")
@@ -61,7 +59,7 @@ class Trader:
             logger.error(f"Trade execution failed for user {user.chat_id}: {e}")
             return None
 
-    async def check_result(self, order_id: str, user) -> dict:
+    async def check_result(self, trade, user) -> dict:
         """Check trade result and return outcome with formatted message."""
         try:
             client = await self._get_client(user)
@@ -69,16 +67,16 @@ class Trader:
             # Wait for expiry (1 minute)
             await asyncio.sleep(60)
 
-            result = await client.check_order_result(order_id)
-
-            pnl = float(result.get("pnl", 0))
+            # quotexpy returns check_win result
+            result = await client.check_win(trade.asset)
+            pnl = float(result.get("profit", 0))
             balance = float(result.get("balance", 0))
 
             return {
                 "result": "WIN" if pnl > 0 else "LOSS",
                 "pnl": pnl,
                 "balance": balance,
-                "message": self._format_result_message(pnl, balance, user.asset if hasattr(user, 'asset') else None)
+                "message": self._format_result_message(pnl, balance, trade.asset)
             }
 
         except Exception as e:
@@ -105,7 +103,8 @@ class Trader:
         """Get user's Quotex balance."""
         try:
             client = await self._get_client(user)
-            return await client.get_balance()
+            balance = await client.get_balance()
+            return float(balance)
         except Exception as e:
             logger.error(f"Failed to get balance for {user.chat_id}: {e}")
             return 0.0

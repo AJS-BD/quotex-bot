@@ -15,7 +15,8 @@ class User(Base):
     __tablename__ = "users"
 
     chat_id = Column(BigInteger, primary_key=True)
-    ssid = Column(String, nullable=False)  # Encrypted
+    email = Column(String, nullable=False)      # Encrypted
+    password = Column(String, nullable=False)   # Encrypted
     stake = Column(Numeric, nullable=False, default=1.0)
     auto_trade = Column(Boolean, default=False)
     assets = Column(JSON, nullable=False, default=list)  # ["ALL"] or ["EURUSD_OTC", ...]

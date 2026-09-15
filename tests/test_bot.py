@@ -86,17 +86,18 @@ async def test_start_command(bot):
     context.bot.send_message.assert_called_once()
     call_kwargs = context.bot.send_message.call_args[1]
     assert "Welcome" in call_kwargs["text"]
-    assert "set_ssid" in call_kwargs["text"]
+    assert "set_email" in call_kwargs["text"]
+    assert "set_password" in call_kwargs["text"]
     assert "set_stake" in call_kwargs["text"]
 
 
 @pytest.mark.asyncio
-async def test_set_ssid_command_new_user(bot):
+async def test_set_email_command_new_user(bot):
     update = MagicMock()
     update.effective_user.id = 123456
     update.message = AsyncMock()
     context = MagicMock()
-    context.args = ["test_session_id_abc"]
+    context.args = ["<EMAIL>"]
 
     mock_session = make_mock_session(user=None)
 
@@ -106,21 +107,72 @@ async def test_set_ssid_command_new_user(bot):
             mock_f.encrypt.return_value = b"encrypted_data"
             mock_fernet.return_value = mock_f
             with patch("config.ENCRYPTION_KEY", "test_key"):
-                await bot.set_ssid_command(update, context)
+                await bot.set_email_command(update, context)
 
-    update.message.reply_text.assert_called_with("✅ Session ID saved!")
+    update.message.reply_text.assert_called_with("✅ Email saved! Now use /set_password")
 
 
 @pytest.mark.asyncio
-async def test_set_ssid_command_no_args(bot):
+async def test_set_email_command_no_args(bot):
     update = MagicMock()
     update.effective_user.id = 123456
     update.message = AsyncMock()
     context = MagicMock()
     context.args = []
 
-    await bot.set_ssid_command(update, context)
-    update.message.reply_text.assert_called_with("Usage: /set_ssid <your_quotex_session_id>")
+    await bot.set_email_command(update, context)
+    update.message.reply_text.assert_called_with("Usage: /set_email <your_quotex_email>")
+
+
+@pytest.mark.asyncio
+async def test_set_password_command_new_user(bot):
+    update = MagicMock()
+    update.effective_user.id = 123456
+    update.message = AsyncMock()
+    context = MagicMock()
+    context.args = ["mypassword"]
+
+    # Mock user with email set but no password
+    mock_user = MagicMock()
+    mock_user.email = "encrypted_email"
+    mock_user.password = ""
+    mock_session = make_mock_session(user=mock_user)
+
+    with patch("bot.get_session", return_value=mock_session):
+        with patch("cryptography.fernet.Fernet") as mock_fernet:
+            mock_f = MagicMock()
+            mock_f.encrypt.return_value = b"encrypted_data"
+            mock_fernet.return_value = mock_f
+            with patch("config.ENCRYPTION_KEY", "test_key"):
+                await bot.set_password_command(update, context)
+
+    update.message.reply_text.assert_called_with("✅ Password saved! Ready to trade.")
+
+
+@pytest.mark.asyncio
+async def test_set_password_command_no_user(bot):
+    update = MagicMock()
+    update.effective_user.id = 123456
+    update.message = AsyncMock()
+    context = MagicMock()
+    context.args = ["mypassword"]
+
+    mock_session = make_mock_session(user=None)
+
+    await bot.set_password_command(update, context)
+    update.message.reply_text.assert_called_with("⚠️ Set email first with /set_email")
+
+
+@pytest.mark.asyncio
+async def test_set_password_command_no_args(bot):
+    update = MagicMock()
+    update.effective_user.id = 123456
+    update.message = AsyncMock()
+    context = MagicMock()
+    context.args = []
+
+    await bot.set_password_command(update, context)
+    update.message.reply_text.assert_called_with("Usage: /set_password <your_quotex_password>")
 
 
 @pytest.mark.asyncio
@@ -154,7 +206,7 @@ async def test_set_stake_command_no_user(bot):
     with patch("bot.get_session", return_value=mock_session):
         await bot.set_stake_command(update, context)
 
-    update.message.reply_text.assert_called_with("⚠️ First set your SSID with /set_ssid")
+    update.message.reply_text.assert_called_with("⚠️ First set your email with /set_email")
 
 
 @pytest.mark.asyncio

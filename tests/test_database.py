@@ -23,7 +23,14 @@ async def session(engine):
 
 @pytest.mark.asyncio
 async def test_create_user(session):
-    user = User(chat_id=123456, ssid="test_ssid", stake=10.0, auto_trade=True, assets=["ALL"])
+    user = User(
+        chat_id=123456,
+        email="encrypted_email",
+        password="<REDACTED>
+        stake=10.0,
+        auto_trade=True,
+        assets=["ALL"],
+    )
     await save_user(session, user)
 
     result = await get_user(session, 123456)
@@ -35,7 +42,14 @@ async def test_create_user(session):
 @pytest.mark.asyncio
 async def test_save_user_upsert(session):
     """Test that save_user updates existing user via merge."""
-    user = User(chat_id=777, ssid="ssid_v1", stake=5.0, auto_trade=False, assets=["ALL"])
+    user = User(
+        chat_id=777,
+        email="encrypted_email_1",
+        password="<REDACTED>
+        stake=5.0,
+        auto_trade=False,
+        assets=["ALL"],
+    )
     await save_user(session, user)
 
     # Update
@@ -66,7 +80,14 @@ async def test_create_signal(session):
 
 @pytest.mark.asyncio
 async def test_create_trade(session):
-    user = User(chat_id=555, ssid="ssid", stake=10.0, auto_trade=True, assets=["ALL"])
+    user = User(
+        chat_id=555,
+        email="encrypted_email",
+        password="<REDACTED>
+        stake=10.0,
+        auto_trade=True,
+        assets=["ALL"],
+    )
     await save_user(session, user)
 
     trade = Trade(
@@ -89,8 +110,14 @@ async def test_create_trade(session):
 @pytest.mark.asyncio
 async def test_get_active_users(session):
     """Test fetching non-paused users."""
-    u1 = User(chat_id=100, ssid="s1", stake=1.0, auto_trade=False, assets=["ALL"], paused=False)
-    u2 = User(chat_id=101, ssid="s2", stake=1.0, auto_trade=False, assets=["ALL"], paused=True)
+    u1 = User(
+        chat_id=100, email="encrypted_1", password="<REDACTED>
+        stake=1.0, auto_trade=False, assets=["ALL"], paused=False,
+    )
+    u2 = User(
+        chat_id=101, email="encrypted_2", password="<REDACTED>
+        stake=1.0, auto_trade=False, assets=["ALL"], paused=True,
+    )
     await save_user(session, u1)
     await save_user(session, u2)
 

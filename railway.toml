@@ -1,6 +1,9 @@
 [build]
 builder = "nixpacks"
 
+[build.commands]
+postinstall = "playwright install chromium"
+
 [deploy]
 startCommand = "python main.py"
 restartPolicyType = "on_failure"

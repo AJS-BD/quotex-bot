@@ -13,8 +13,8 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 # Mock Fernet to avoid dependency on real ENCRYPTION_KEY and cross-test contamination
 mock_fernet_module = MagicMock()
 mock_fernet_instance = MagicMock()
-mock_fernet_instance.encrypt = MagicMock(return_value=b"encrypted_test_ssid")
-mock_fernet_instance.decrypt = MagicMock(return_value=b"test_ssid")
+mock_fernet_instance.encrypt = MagicMock(return_value=b"encrypted_test_email")
+mock_fernet_instance.decrypt = MagicMock(return_value=b"<EMAIL>")
 mock_fernet_module.Fernet.return_value = mock_fernet_instance
 sys.modules['cryptography'] = mock_fernet_module
 sys.modules['cryptography.fernet'] = mock_fernet_module
@@ -122,14 +122,16 @@ async def test_signal_save_and_cooldown(session):
 @pytest.mark.asyncio
 async def test_user_save_and_retrieve(session):
     """Test: user can be saved and retrieved."""
-    encrypted_ssid = mock_fernet_module.Fernet().encrypt(b"test_ssid").decode()
+    encrypted_email = mock_fernet_module.Fernet().encrypt(b"<EMAIL>").decode()
+    encrypted_password = mock_fernet_module.Fernet().encrypt(b"password").decode()
 
     user = User(
         chat_id=999999,
-        ssid=encrypted_ssid,
+        email=encrypted_email,
+        password=<REDACTED>
         stake=10.0,
         auto_trade=False,
-        assets=["ALL"]
+        assets=["ALL"],
     )
     await save_user(session, user)
 
@@ -142,23 +144,26 @@ async def test_user_save_and_retrieve(session):
 @pytest.mark.asyncio
 async def test_active_users_filter(session):
     """Test: paused users are excluded from active list."""
-    encrypted_ssid = mock_fernet_module.Fernet().encrypt(b"test_ssid").decode()
+    encrypted_email = mock_fernet_module.Fernet().encrypt(b"<EMAIL>").decode()
+    encrypted_password = mock_fernet_module.Fernet().encrypt(b"password").decode()
 
     active_user = User(
         chat_id=111111,
-        ssid=encrypted_ssid,
+        email=encrypted_email,
+        password=<REDACTED>
         stake=10.0,
         auto_trade=True,
         assets=["ALL"],
-        paused=False
+        paused=False,
     )
     paused_user = User(
         chat_id=222222,
-        ssid=encrypted_ssid,
+        email=encrypted_email,
+        password=<REDACTED>
         stake=5.0,
         auto_trade=True,
         assets=["ALL"],
-        paused=True
+        paused=True,
     )
     await save_user(session, active_user)
     await save_user(session, paused_user)
@@ -173,14 +178,16 @@ async def test_active_users_filter(session):
 async def test_trade_save_and_result(session):
     """Test: trade can be saved and result updated."""
     # First save a user (Trade has FK to users.chat_id)
-    encrypted_ssid = mock_fernet_module.Fernet().encrypt(b"test_ssid").decode()
+    encrypted_email = mock_fernet_module.Fernet().encrypt(b"<EMAIL>").decode()
+    encrypted_password = mock_fernet_module.Fernet().encrypt(b"password").decode()
 
     user = User(
         chat_id=999999,
-        ssid=encrypted_ssid,
+        email=encrypted_email,
+        password=<REDACTED>
         stake=10.0,
         auto_trade=True,
-        assets=["ALL"]
+        assets=["ALL"],
     )
     await save_user(session, user)
 
@@ -216,14 +223,16 @@ async def test_full_signal_pipeline(session):
     user notified (mock) → trade executed → result checked.
     """
     # Step 0: Setup user
-    encrypted_ssid = mock_fernet_module.Fernet().encrypt(b"test_ssid").decode()
+    encrypted_email = mock_fernet_module.Fernet().encrypt(b"<EMAIL>").decode()
+    encrypted_password = mock_fernet_module.Fernet().encrypt(b"password").decode()
 
     user = User(
         chat_id=777777,
-        ssid=encrypted_ssid,
+        email=encrypted_email,
+        password=<REDACTED>
         stake=5.0,
         auto_trade=False,
-        assets=["ALL"]
+        assets=["ALL"],
     )
     await save_user(session, user)
 
@@ -325,15 +334,17 @@ async def test_paused_user_excluded_from_trade(session):
     Integration: paused user's signal detection does not result in trade.
     """
     # Create a paused user (unique chat_id to avoid conflicts)
-    encrypted_ssid = mock_fernet_module.Fernet().encrypt(b"test_ssid").decode()
+    encrypted_email = mock_fernet_module.Fernet().encrypt(b"<EMAIL>").decode()
+    encrypted_password = mock_fernet_module.Fernet().encrypt(b"password").decode()
 
     paused_user = User(
         chat_id=333333,
-        ssid=encrypted_ssid,
+        email=encrypted_email,
+        password=<REDACTED>
         stake=10.0,
         auto_trade=True,
         assets=["ALL"],
-        paused=True
+        paused=True,
     )
     await save_user(session, paused_user)
 

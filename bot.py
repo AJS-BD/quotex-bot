@@ -21,7 +21,8 @@ class QuotexBot:
 
     def _register_handlers(self):
         self.app.add_handler(CommandHandler("start", self.start_command))
-        self.app.add_handler(CommandHandler("set_ssid", self.set_ssid_command))
+        self.app.add_handler(CommandHandler("set_email", self.set_email_command))
+        self.app.add_handler(CommandHandler("set_password", self.set_password_command))
         self.app.add_handler(CommandHandler("set_stake", self.set_stake_command))
         self.app.add_handler(CommandHandler("auto_on", self.auto_on_command))
         self.app.add_handler(CommandHandler("auto_off", self.auto_off_command))
@@ -37,9 +38,10 @@ class QuotexBot:
             "🚀 Welcome to Quotex Signal Bot!\n\n"
             "I scan OTC markets for 4-candle reversal patterns.\n\n"
             "Setup:\n"
-            "1. /set_ssid <your_quotex_ssid>\n"
-            "2. /set_stake <amount>\n"
-            "3. /auto_on (or use buttons)\n\n"
+            "1. /set_email <your_quotex_email>\n"
+            "2. /set_password <your_quotex_password>\n"
+            "3. /set_stake <amount>\n"
+            "4. /auto_on (or use buttons)\n\n"
             "Commands:\n"
             "/status - View settings & P&L\n"
             "/pause /resume - Toggle alerts\n"
@@ -47,28 +49,51 @@ class QuotexBot:
         )
         await context.bot.send_message(chat_id=user_id, text=welcome)
 
-    async def set_ssid_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def set_email_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = update.effective_user.id
         if not context.args:
-            await update.message.reply_text("Usage: /set_ssid <your_quotex_session_id>")
+            await update.message.reply_text("Usage: /set_email <your_quotex_email>")
             return
 
         from cryptography.fernet import Fernet
         from config import ENCRYPTION_KEY
 
-        ssid = " ".join(context.args)
+        email = " ".join(context.args)
         f = Fernet(ENCRYPTION_KEY.encode())
-        encrypted_ssid = f.encrypt(ssid.encode()).decode()
+        encrypted_email = f.encrypt(email.encode()).decode()
 
         async with get_session() as session:
             user = await get_user(session, user_id)
             if user is None:
-                user = User(chat_id=user_id, ssid=encrypted_ssid, stake=1.0, auto_trade=False, assets=["ALL"])
+                user = User(chat_id=user_id, email=encrypted_email, password="", stake=1.0, auto_trade=False, assets=["ALL"])
             else:
-                user.ssid = encrypted_ssid
+                user.email = encrypted_email
             await save_user(session, user)
 
-        await update.message.reply_text("✅ Session ID saved!")
+        await update.message.reply_text("✅ Email saved! Now use /set_password")
+
+    async def set_password_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        user_id = update.effective_user.id
+        if not context.args:
+            await update.message.reply_text("Usage: /set_password <your_quotex_password>")
+            return
+
+        from cryptography.fernet import Fernet
+        from config import ENCRYPTION_KEY
+
+        password = " ".join(context.args)
+        f = Fernet(ENCRYPTION_KEY.encode())
+        encrypted_password = f.encrypt(password.encode()).decode()
+
+        async with get_session() as session:
+            user = await get_user(session, user_id)
+            if user is None:
+                await update.message.reply_text("⚠️ Set email first with /set_email")
+                return
+            user.password = encrypted_password
+            await save_user(session, user)
+
+        await update.message.reply_text("✅ Password saved! Ready to trade.")
 
     async def set_stake_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = update.effective_user.id
@@ -85,7 +110,7 @@ class QuotexBot:
         async with get_session() as session:
             user = await get_user(session, user_id)
             if user is None:
-                await update.message.reply_text("⚠️ First set your SSID with /set_ssid")
+                await update.message.reply_text("⚠️ First set your email with /set_email")
                 return
             user.stake = stake
             await save_user(session, user)
@@ -97,7 +122,7 @@ class QuotexBot:
         async with get_session() as session:
             user = await get_user(session, user_id)
             if not user:
-                await update.message.reply_text("⚠️ Set SSID and stake first.")
+                await update.message.reply_text("⚠️ Set email, password and stake first.")
                 return
             user.auto_trade = True
             await save_user(session, user)
@@ -108,7 +133,7 @@ class QuotexBot:
         async with get_session() as session:
             user = await get_user(session, user_id)
             if not user:
-                await update.message.reply_text("⚠️ Set SSID and stake first.")
+                await update.message.reply_text("⚠️ Set email, password and stake first.")
                 return
             user.auto_trade = False
             await save_user(session, user)
@@ -195,7 +220,7 @@ class QuotexBot:
                 await query.edit_message_text(f"📈 {direction} {asset} @ ${float(user.stake):.2f} — Active")
 
                 # Check result after 60s
-                result = await self.trader.check_result(trade.order_id, user)
+                result = await self.trader.check_result(trade, user)
                 trade.result = result["result"]
                 trade.pnl = result["pnl"]
                 trade.balance_after = result["balance"]

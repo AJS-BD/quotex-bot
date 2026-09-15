@@ -59,7 +59,7 @@ async def auto_trade_checker():
                 for trade in pending:
                     user = await get_user(session, trade.user_id)
                     if user and trade.order_id:
-                        res = await trader.check_result(trade.order_id, user)
+                        res = await trader.check_result(trade, user)
                         trade.result = res["result"]
                         trade.pnl = res["pnl"]
                         trade.balance_after = res["balance"]
@@ -83,8 +83,8 @@ async def main():
     bot = QuotexBot(token=TELEGRAM_BOT_TOKEN)
     logger.info("Telegram bot initialized")
     
-    # Start data feed (use a dummy SSID for scanner — no trades)
-    feed = DataFeed(ssid="")
+    # Start data feed (no SSID needed — quotexpy handles auth internally)
+    feed = DataFeed()
     try:
         await feed.connect()
         # Subscribe to OTC assets (fetch from Quotex API in production)
