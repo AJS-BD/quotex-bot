@@ -59,7 +59,7 @@ async def create_tables():
         await conn.run_sync(Base.metadata.create_all)
 
 
-async def get_session() -> AsyncSession:
+def get_session() -> AsyncSession:
     return async_session()
 
 
