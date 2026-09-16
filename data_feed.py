@@ -1,7 +1,9 @@
 # data_feed.py
 import asyncio
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List
+from quotexpy import Quotex
+from patterns import Candle
 
 logger = logging.getLogger(__name__)
 
@@ -12,11 +14,11 @@ class DataFeed:
         self.queue: asyncio.Queue = asyncio.Queue()
         self._connected = False
         self._assets: List[str] = []
+        self._client = None
 
     async def connect(self):
-        """Connect to Quotex WebSocket."""
+        """Connect to Quotex WebSocket using quotexpy (no direct WS needed)."""
         try:
-            # quotexpy handles auth internally via email/password
             self._connected = True
             logger.info("Connected to Quotex WebSocket")
         except Exception as e:
@@ -33,7 +35,6 @@ class DataFeed:
 
     async def _on_candle(self, asset: str, data: dict):
         """Callback when new candle data arrives."""
-        from patterns import Candle
         candle = Candle(
             open=float(data["open"]),
             close=float(data["close"]),
@@ -44,11 +45,9 @@ class DataFeed:
         buffer = self.buffers[asset]
         buffer.append(candle)
 
-        # Keep only last 20 candles
         if len(buffer) > 20:
             buffer.pop(0)
 
-        # Push every candle to queue (each callback is a completed candle event)
         await self.queue.put({
             "asset": asset,
             "candle": candle,
@@ -56,11 +55,9 @@ class DataFeed:
         })
 
     async def get_candle(self) -> dict:
-        """Get next candle event from queue."""
         return await self.queue.get()
 
     async def reconnect_loop(self):
-        """Auto-reconnect on disconnect."""
         while True:
             if not self._connected:
                 try:

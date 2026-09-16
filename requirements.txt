@@ -1,11 +1,7 @@
-quotexpy>=1.40
+git+https://github.com/SantiiRepair/quotexpy.git
 python-telegram-bot>=20.0
 sqlalchemy>=2.0
 asyncpg>=0.29
-alembic>=1.13
 pyyaml>=60.0
 python-dotenv>=1.0
 cryptography>=41.0
-pytest>=7.0
-pytest-asyncio>=0.21
-playwright>=1.40
